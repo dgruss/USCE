@@ -439,6 +439,7 @@ type
 
       procedure GetFrame(Time: Extended);
       procedure Draw();
+      function HasFrame: boolean;
 
 
       property Screen: integer read GetScreen;

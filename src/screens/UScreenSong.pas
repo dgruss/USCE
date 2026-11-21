@@ -3141,7 +3141,7 @@ var
   dx:         real;
   dt:         real;
   VideoAlpha: real;
-  Position:   real;
+  VideoReady: boolean;
   I, J:       integer;
 begin
 
@@ -3185,8 +3185,20 @@ begin
   begin
     LastPreviewStartTime := 0;
     StartVideoPreview;
-    if Assigned(fCurrentVideo) then
-      CoverTime := 1;
+  end;
+
+  // Only start the transition from the cover when there is an image to draw.
+  VideoReady := false;
+  if Assigned(fCurrentVideo) then
+  begin
+    VideoReady := fCurrentVideo.HasFrame;
+    if ScreenAct = 1 then
+    begin
+      fCurrentVideo.GetFrame(CatSongs.Song[Interaction].VideoGAP + AudioPlayback.Position);
+      if not VideoReady and fCurrentVideo.HasFrame then
+        CoverTime := 1;
+      VideoReady := fCurrentVideo.HasFrame;
+    end;
   end;
 
   {   //basisbit todo this block was auskommentiert
@@ -3211,11 +3223,11 @@ begin
   //Fading Functions, Only if Covertime is under 5 Seconds
   if (TSongMenuMode(Ini.SongMenu) in [smChessboard, smList]) then
   begin
-    if not(Assigned(fCurrentVideo)) then
+    if not VideoReady then
       Statics[StaticActual].Texture.Alpha := 1
     else
     begin
-      if (CoverTime < 9) and Assigned(fCurrentVideo) then
+      if CoverTime < 9 then
       begin
 
         //Update Fading Time
@@ -3337,7 +3349,7 @@ begin
   //We draw Buttons for our own
   for I := 0 to High(Button) do
   begin
-    if (TSongMenuMode(Ini.SongMenu) in [smChessboard, smList]) or (((I<>Interaction) or not Assigned(fCurrentVideo) or (VideoAlpha<1) or FinishedMusic)) then
+    if (TSongMenuMode(Ini.SongMenu) in [smChessboard, smList]) or (((I<>Interaction) or not VideoReady or (VideoAlpha<1) or FinishedMusic)) then
     begin
         // todo: there's probably a better way to set the selected one
         //  but it's better than every not-yet-selected button being rendered as selected
@@ -3346,17 +3358,8 @@ begin
     end;
   end;
 
-  //  StopVideoPreview;
-
-  Position := AudioPlayback.Position;
-
-  if Assigned(fCurrentVideo) then
+  if VideoReady then
   begin
-    // Just call this once
-    // when Screens = 2
-    if (ScreenAct = 1) then
-      fCurrentVideo.GetFrame(CatSongs.Song[Interaction].VideoGAP + Position);
-
     fCurrentVideo.SetScreen(ScreenAct);
     fCurrentVideo.Alpha := VideoAlpha;
 

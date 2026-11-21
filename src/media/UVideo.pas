@@ -199,6 +199,7 @@ type
      function GetReflectionSpacing(): double;
 
      procedure GetFrame(Time: Extended);
+     function HasFrame: boolean;
      procedure Draw();
   end;
 
@@ -834,6 +835,11 @@ begin
   Result := true;
 end;
 
+function TVideo_FFmpeg.HasFrame: boolean;
+begin
+  Result := fOpened and fFrameTexValid;
+end;
+
 procedure TVideo_FFmpeg.GetFrame(Time: Extended);
 var
   errnum: Integer;
@@ -954,12 +960,11 @@ begin
 
   // otherwise we convert the pixeldata from YUV to RGB
   try
-
-  errnum := sws_scale(fSwScaleContext, @fAVFrame.data, @fAVFrame.linesize,
-          0, fCodecContext^.Height,
-          @fAVFrameRGB.data, @fAVFrameRGB.linesize);
+    errnum := sws_scale(fSwScaleContext, @fAVFrame.data, @fAVFrame.linesize,
+                       0, fCodecContext^.Height,
+                       @fAVFrameRGB.data, @fAVFrameRGB.linesize);
   except
-    ;
+    errnum := -1;
   end;
 
   {$IF LIBSWSCALE_VERSION < 8003000}
@@ -974,7 +979,7 @@ begin
   {$ENDIF}
   {$ENDIF}
 
-  if (errnum < 0) then
+  if errnum <> fScaledHeight then
   begin
     Log.LogError('Image conversion failed', 'TVideoPlayback_ffmpeg.GetFrame');
     Exit;
@@ -1106,8 +1111,8 @@ var
   ScreenRect:   TRectCoords;
   TexRect:      TRectCoords;
 begin
-  // exit if there's nothing to draw
-  if (not fOpened) then
+  // A newly allocated texture has no image until GetFrame uploads one.
+  if not HasFrame then
     Exit;
 
   {$IFDEF VideoBenchmark}
